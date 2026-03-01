@@ -29,6 +29,48 @@
 	},
 	"resources": [
 		{
+			"name": "[concat(parameters('factoryName'), '/pl_DeltaCopy_LookupFilter')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"activities": [
+					{
+						"name": "lkp_GetOldWatermark",
+						"type": "Lookup",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"source": {
+								"type": "AzureSqlSource",
+								"sqlReaderQuery": "SELECT last_id FROM control.delta_watermark\r\nWHERE table_name = 'sales_orders'",
+								"queryTimeout": "02:00:00",
+								"partitionOption": "None"
+							},
+							"dataset": {
+								"referenceName": "ds_DeltaWatermark_Table",
+								"type": "DatasetReference",
+								"parameters": {}
+							}
+						}
+					}
+				],
+				"policy": {
+					"elapsedTimeMetric": {}
+				},
+				"annotations": []
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/datasets/ds_DeltaWatermark_Table')]"
+			]
+		},
+		{
 			"name": "[concat(parameters('factoryName'), '/pl_Watermark_IncrementalLoad')]",
 			"type": "Microsoft.DataFactory/factories/pipelines",
 			"apiVersion": "2018-06-01",
@@ -54,7 +96,7 @@
 								"partitionOption": "None"
 							},
 							"dataset": {
-								"referenceName": "ds_watermark_table",
+								"referenceName": "ds_Watermark_Table",
 								"type": "DatasetReference",
 								"parameters": {}
 							}
@@ -256,7 +298,7 @@
 						],
 						"outputs": [
 							{
-								"referenceName": "ds_sales_order_sink",
+								"referenceName": "ds_SalesOrders_Sink",
 								"type": "DatasetReference",
 								"parameters": {}
 							}
@@ -309,9 +351,160 @@
 				"annotations": []
 			},
 			"dependsOn": [
-				"[concat(variables('factoryId'), '/datasets/ds_watermark_table')]",
+				"[concat(variables('factoryId'), '/datasets/ds_Watermark_Table')]",
 				"[concat(variables('factoryId'), '/datasets/ds_SalesOrders_Source')]",
-				"[concat(variables('factoryId'), '/datasets/ds_sales_order_sink')]",
+				"[concat(variables('factoryId'), '/datasets/ds_SalesOrders_Sink')]",
+				"[concat(variables('factoryId'), '/linkedServices/ls_azuresql_incremental_dataload')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/ds_DeltaWatermark_Table')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "ls_azuresql_incremental_dataload",
+					"type": "LinkedServiceReference"
+				},
+				"annotations": [],
+				"type": "AzureSqlTable",
+				"schema": [
+					{
+						"name": "table_name",
+						"type": "varchar"
+					},
+					{
+						"name": "last_id",
+						"type": "int",
+						"precision": 10
+					}
+				],
+				"typeProperties": {
+					"schema": "control",
+					"table": "delta_watermark"
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/linkedServices/ls_azuresql_incremental_dataload')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/ds_SalesOrders_DeltaSink')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "ls_azuresql_incremental_dataload",
+					"type": "LinkedServiceReference"
+				},
+				"annotations": [],
+				"type": "AzureSqlTable",
+				"schema": [
+					{
+						"name": "order_id",
+						"type": "int",
+						"precision": 10
+					},
+					{
+						"name": "customer_name",
+						"type": "varchar"
+					},
+					{
+						"name": "product",
+						"type": "varchar"
+					},
+					{
+						"name": "quantity",
+						"type": "int",
+						"precision": 10
+					},
+					{
+						"name": "unit_price",
+						"type": "float",
+						"precision": 15
+					},
+					{
+						"name": "total_amount",
+						"type": "float",
+						"precision": 15
+					},
+					{
+						"name": "order_status",
+						"type": "varchar"
+					},
+					{
+						"name": "modified_date",
+						"type": "datetime",
+						"precision": 23,
+						"scale": 3
+					}
+				],
+				"typeProperties": {
+					"schema": "dbo",
+					"table": "sales_orders_delta_sink"
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/linkedServices/ls_azuresql_incremental_dataload')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/ds_SalesOrders_Sink')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "ls_azuresql_incremental_dataload",
+					"type": "LinkedServiceReference"
+				},
+				"annotations": [],
+				"type": "AzureSqlTable",
+				"schema": [
+					{
+						"name": "order_id",
+						"type": "int",
+						"precision": 10
+					},
+					{
+						"name": "customer_name",
+						"type": "varchar"
+					},
+					{
+						"name": "product",
+						"type": "varchar"
+					},
+					{
+						"name": "quantity",
+						"type": "int",
+						"precision": 10
+					},
+					{
+						"name": "unit_price",
+						"type": "float",
+						"precision": 15
+					},
+					{
+						"name": "total_amount",
+						"type": "float",
+						"precision": 15
+					},
+					{
+						"name": "order_status",
+						"type": "varchar"
+					},
+					{
+						"name": "modified_date",
+						"type": "datetime",
+						"precision": 23,
+						"scale": 3
+					}
+				],
+				"typeProperties": {
+					"schema": "dbo",
+					"table": "sales_orders_sink"
+				}
+			},
+			"dependsOn": [
 				"[concat(variables('factoryId'), '/linkedServices/ls_azuresql_incremental_dataload')]"
 			]
 		},
@@ -376,67 +569,7 @@
 			]
 		},
 		{
-			"name": "[concat(parameters('factoryName'), '/ds_sales_order_sink')]",
-			"type": "Microsoft.DataFactory/factories/datasets",
-			"apiVersion": "2018-06-01",
-			"properties": {
-				"linkedServiceName": {
-					"referenceName": "ls_azuresql_incremental_dataload",
-					"type": "LinkedServiceReference"
-				},
-				"annotations": [],
-				"type": "AzureSqlTable",
-				"schema": [
-					{
-						"name": "order_id",
-						"type": "int",
-						"precision": 10
-					},
-					{
-						"name": "customer_name",
-						"type": "varchar"
-					},
-					{
-						"name": "product",
-						"type": "varchar"
-					},
-					{
-						"name": "quantity",
-						"type": "int",
-						"precision": 10
-					},
-					{
-						"name": "unit_price",
-						"type": "float",
-						"precision": 15
-					},
-					{
-						"name": "total_amount",
-						"type": "float",
-						"precision": 15
-					},
-					{
-						"name": "order_status",
-						"type": "varchar"
-					},
-					{
-						"name": "modified_date",
-						"type": "datetime",
-						"precision": 23,
-						"scale": 3
-					}
-				],
-				"typeProperties": {
-					"schema": "dbo",
-					"table": "sales_orders_sink"
-				}
-			},
-			"dependsOn": [
-				"[concat(variables('factoryId'), '/linkedServices/ls_azuresql_incremental_dataload')]"
-			]
-		},
-		{
-			"name": "[concat(parameters('factoryName'), '/ds_watermark_table')]",
+			"name": "[concat(parameters('factoryName'), '/ds_Watermark_Table')]",
 			"type": "Microsoft.DataFactory/factories/datasets",
 			"apiVersion": "2018-06-01",
 			"properties": {
