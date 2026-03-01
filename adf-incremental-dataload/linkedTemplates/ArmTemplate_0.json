@@ -463,10 +463,10 @@
 										"value": "@formatDateTime(activity('LKP_GetNewWatermark').output.firstRow.new_watermark, 'yyyy-MM-dd HH:mm:ss')",
 										"type": "Expression"
 									},
-									"type": "DateTime"
+									"type": "String"
 								},
 								"table_name": {
-									"value": "",
+									"value": "sales_orders",
 									"type": "String"
 								}
 							}
