@@ -81,7 +81,10 @@
 				"typeProperties": {
 					"source": {
 						"type": "AzureSqlSource",
-						"sqlReaderQuery": "SELECT \r\n    *\r\nFROM dbo.sales_orders\r\nWHERE modified_date > '@{activity('LKP_GetOldWatermark').output.firstRow.last_loaded_time}'\r\n    AND modified_date <= '@{activity}('LKP_GetNewWatermark').output.firstRow.last_loaded_time}'",
+						"sqlReaderQuery": {
+							"value": "SELECT \n    *\nFROM dbo.sales_orders\nWHERE modified_date > '@{activity('LKP_GetOldWatermark').output.firstRow.last_loaded_time}'\n    AND modified_date <= '@{activity('LKP_GetNewWatermark').output.firstRow.last_loaded_time}'",
+							"type": "Expression"
+						},
 						"queryTimeout": "02:00:00",
 						"partitionOption": "None"
 					},
