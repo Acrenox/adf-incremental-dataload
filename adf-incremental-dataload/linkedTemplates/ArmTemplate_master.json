@@ -1,0 +1,70 @@
+{
+	"$schema": "http://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+	"contentVersion": "1.0.0.0",
+	"parameters": {
+		"factoryName": {
+			"type": "string",
+			"metadata": "Data Factory name",
+			"defaultValue": "adf-incremental-dataload"
+		},
+		"ls_azuresql_incremental_dataload_password": {
+			"type": "secureString",
+			"metadata": "Secure string for 'password' of 'ls_azuresql_incremental_dataload'"
+		},
+		"ls_azuresql_incremental_dataload_properties_typeProperties_server": {
+			"type": "string",
+			"defaultValue": "sqlserver-incremental-dataload.database.windows.net"
+		},
+		"ls_azuresql_incremental_dataload_properties_typeProperties_database": {
+			"type": "string",
+			"defaultValue": "sqldb-incremental-dataload"
+		},
+		"ls_azuresql_incremental_dataload_properties_typeProperties_userName": {
+			"type": "string",
+			"defaultValue": "sqladmin"
+		},
+		"containerUri": {
+			"type": "string",
+			"metadata": "URI to storage account containing linked ARM templates"
+		},
+		"containerSasToken": {
+			"type": "string",
+			"metadata": "Sas token to storage account containing linked ARM templates"
+		}
+	},
+	"variables": {
+		"factoryId": "[concat('Microsoft.DataFactory/factories/', parameters('factoryName'))]"
+	},
+	"resources": [
+		{
+			"name": "adf-incremental-dataload_ArmTemplate_0",
+			"type": "Microsoft.Resources/deployments",
+			"apiVersion": "2024-03-01",
+			"properties": {
+				"mode": "incremental",
+				"templateLink": {
+					"uri": "[concat(parameters('containerUri'), '/ArmTemplate_0.json', parameters('containerSasToken'))]",
+					"contentVersion": "1.0.0.0"
+				},
+				"parameters": {
+					"factoryName": {
+						"value": "[parameters('factoryName')]"
+					},
+					"ls_azuresql_incremental_dataload_password": {
+						"value": "[parameters('ls_azuresql_incremental_dataload_password')]"
+					},
+					"ls_azuresql_incremental_dataload_properties_typeProperties_server": {
+						"value": "[parameters('ls_azuresql_incremental_dataload_properties_typeProperties_server')]"
+					},
+					"ls_azuresql_incremental_dataload_properties_typeProperties_database": {
+						"value": "[parameters('ls_azuresql_incremental_dataload_properties_typeProperties_database')]"
+					},
+					"ls_azuresql_incremental_dataload_properties_typeProperties_userName": {
+						"value": "[parameters('ls_azuresql_incremental_dataload_properties_typeProperties_userName')]"
+					}
+				}
+			},
+			"dependsOn": []
+		}
+	]
+}
