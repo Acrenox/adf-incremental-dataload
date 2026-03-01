@@ -17,7 +17,7 @@
 				"typeProperties": {
 					"source": {
 						"type": "AzureSqlSource",
-						"sqlReaderQuery": "SELECT\r\n    last_loaded_date\r\nFROM \r\n    control.watermark_table\r\nWHERE \r\n    table_name = 'sales_orders'",
+						"sqlReaderQuery": "SELECT\r\n    last_loaded_time\r\nFROM \r\n    control.watermark_table\r\nWHERE \r\n    table_name = 'sales_orders'",
 						"queryTimeout": "02:00:00",
 						"partitionOption": "None"
 					},
@@ -82,7 +82,7 @@
 					"source": {
 						"type": "AzureSqlSource",
 						"sqlReaderQuery": {
-							"value": "SELECT \n    *\nFROM dbo.sales_orders\nWHERE modified_date > '@{activity('LKP_GetOldWatermark').output.firstRow.last_loaded_time}'\n    AND modified_date <= '@{activity('LKP_GetNewWatermark').output.firstRow.last_loaded_time}'",
+							"value": "SELECT * FROM dbo.sales_orders\nWHERE modified_date > '@{activity('LKP_GetOldWatermark').output.firstRow.last_loaded_time}'\nAND modified_date <= '@{activity('LKP_GetNewWatermark').output.firstRow.new_watermark}'",
 							"type": "Expression"
 						},
 						"queryTimeout": "02:00:00",
@@ -225,6 +225,43 @@
 						"type": "DatasetReference"
 					}
 				]
+			},
+			{
+				"name": "sp_UpdateWatermark",
+				"type": "SqlServerStoredProcedure",
+				"dependsOn": [
+					{
+						"activity": "cpy_IncrementalLoad",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"storedProcedureName": "[control].[usp_UpdateWatermark]",
+					"storedProcedureParameters": {
+						"last_loaded_time": {
+							"value": "",
+							"type": "DateTime"
+						},
+						"table_name": {
+							"value": "",
+							"type": "String"
+						}
+					}
+				},
+				"linkedServiceName": {
+					"referenceName": "ls_azuresql_incremental_dataload",
+					"type": "LinkedServiceReference"
+				}
 			}
 		],
 		"annotations": []
