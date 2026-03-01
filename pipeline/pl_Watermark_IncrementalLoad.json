@@ -82,7 +82,7 @@
 					"source": {
 						"type": "AzureSqlSource",
 						"sqlReaderQuery": {
-							"value": "SELECT * FROM dbo.sales_orders\nWHERE modified_date > '@{activity('LKP_GetOldWatermark').output.firstRow.last_loaded_time}'\nAND modified_date <= '@{activity('LKP_GetNewWatermark').output.firstRow.new_watermark}'",
+							"value": "SELECT * FROM dbo.sales_orders",
 							"type": "Expression"
 						},
 						"queryTimeout": "02:00:00",
