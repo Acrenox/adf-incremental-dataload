@@ -1,0 +1,9 @@
+{
+	"name": "adf-incremental-dataload",
+	"location": "southindia",
+	"identity": {
+		"type": "SystemAssigned",
+		"principalId": "59df1f10-2eef-4022-8b6b-2c7f12e3aaa2",
+		"tenantId": "57c47e73-c09c-4916-8cc1-d1ce0d8e5187"
+	}
+}
