@@ -1,0 +1,33 @@
+{
+	"name": "pl_DeltaCopy_LookupFilter",
+	"properties": {
+		"activities": [
+			{
+				"name": "lkp_GetOldWatermark",
+				"type": "Lookup",
+				"dependsOn": [],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"source": {
+						"type": "AzureSqlSource",
+						"sqlReaderQuery": "SELECT last_id FROM control.delta_watermark\r\nWHERE table_name = 'sales_orders'",
+						"queryTimeout": "02:00:00",
+						"partitionOption": "None"
+					},
+					"dataset": {
+						"referenceName": "ds_DeltaWatermark_Table",
+						"type": "DatasetReference"
+					}
+				}
+			}
+		],
+		"annotations": []
+	}
+}
