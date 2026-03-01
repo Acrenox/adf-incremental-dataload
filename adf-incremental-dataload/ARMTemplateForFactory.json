@@ -29,13 +29,13 @@
 	},
 	"resources": [
 		{
-			"name": "[concat(parameters('factoryName'), '/pipeline1')]",
+			"name": "[concat(parameters('factoryName'), '/pl_Watermark_IncrementalLoad')]",
 			"type": "Microsoft.DataFactory/factories/pipelines",
 			"apiVersion": "2018-06-01",
 			"properties": {
 				"activities": [
 					{
-						"name": "Lookup1",
+						"name": "lkp_GetOldWatermark",
 						"type": "Lookup",
 						"dependsOn": [],
 						"policy": {
@@ -59,6 +59,208 @@
 								"parameters": {}
 							}
 						}
+					},
+					{
+						"name": "lkp_GetNewWatermark",
+						"type": "Lookup",
+						"dependsOn": [
+							{
+								"activity": "lkp_GetOldWatermark",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"source": {
+								"type": "AzureSqlSource",
+								"sqlReaderQuery": "SELECT\r\n   MAX(modified_date) as new_watermark\r\nFROM \r\n   db0.sales_orders",
+								"queryTimeout": "02:00:00",
+								"partitionOption": "None"
+							},
+							"dataset": {
+								"referenceName": "ds_sales_orders_source",
+								"type": "DatasetReference",
+								"parameters": {}
+							}
+						}
+					},
+					{
+						"name": "cpy_IncrementalLoad",
+						"type": "Copy",
+						"dependsOn": [
+							{
+								"activity": "lkp_GetNewWatermark",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"source": {
+								"type": "AzureSqlSource",
+								"sqlReaderQuery": {
+									"value": "SELECT \n    *\nFROM dbo.sales_orders\nWHERE modified_date > '@{activity('LKP_GetOldWatermark').output.firstRow.last_loaded_time}'\n    AND modified_date <= '@{activity('LKP_GetNewWatermark').output.firstRow.last_loaded_time}'",
+									"type": "Expression"
+								},
+								"queryTimeout": "02:00:00",
+								"partitionOption": "None"
+							},
+							"sink": {
+								"type": "AzureSqlSink",
+								"writeBehavior": "insert",
+								"sqlWriterUseTableLock": false
+							},
+							"enableStaging": false,
+							"translator": {
+								"type": "TabularTranslator",
+								"mappings": [
+									{
+										"source": {
+											"name": "order_id",
+											"type": "int",
+											"physicalType": "int",
+											"precision": 10
+										},
+										"sink": {
+											"name": "order_id",
+											"type": "int",
+											"physicalType": "int",
+											"precision": 10
+										}
+									},
+									{
+										"source": {
+											"name": "customer_name",
+											"type": "varchar",
+											"physicalType": "varchar"
+										},
+										"sink": {
+											"name": "customer_name",
+											"type": "varchar",
+											"physicalType": "varchar"
+										}
+									},
+									{
+										"source": {
+											"name": "product",
+											"type": "varchar",
+											"physicalType": "varchar"
+										},
+										"sink": {
+											"name": "product",
+											"type": "varchar",
+											"physicalType": "varchar"
+										}
+									},
+									{
+										"source": {
+											"name": "quantity",
+											"type": "int",
+											"physicalType": "int",
+											"precision": 10
+										},
+										"sink": {
+											"name": "quantity",
+											"type": "int",
+											"physicalType": "int",
+											"precision": 10
+										}
+									},
+									{
+										"source": {
+											"name": "unit_price",
+											"type": "float",
+											"physicalType": "float",
+											"precision": 15
+										},
+										"sink": {
+											"name": "unit_price",
+											"type": "float",
+											"physicalType": "float",
+											"precision": 15
+										}
+									},
+									{
+										"source": {
+											"name": "total_amount",
+											"type": "float",
+											"physicalType": "float",
+											"precision": 15
+										},
+										"sink": {
+											"name": "total_amount",
+											"type": "float",
+											"physicalType": "float",
+											"precision": 15
+										}
+									},
+									{
+										"source": {
+											"name": "order_status",
+											"type": "varchar",
+											"physicalType": "varchar"
+										},
+										"sink": {
+											"name": "order_status",
+											"type": "varchar",
+											"physicalType": "varchar"
+										}
+									},
+									{
+										"source": {
+											"name": "modified_date",
+											"type": "datetime",
+											"physicalType": "datetime",
+											"scale": 3,
+											"precision": 23
+										},
+										"sink": {
+											"name": "modified_date",
+											"type": "datetime",
+											"physicalType": "datetime",
+											"scale": 3,
+											"precision": 23
+										}
+									}
+								],
+								"typeConversion": true,
+								"typeConversionSettings": {
+									"allowDataTruncation": true,
+									"treatBooleanAsNumber": false
+								}
+							}
+						},
+						"inputs": [
+							{
+								"referenceName": "ds_sales_orders_source",
+								"type": "DatasetReference",
+								"parameters": {}
+							}
+						],
+						"outputs": [
+							{
+								"referenceName": "ds_sales_order_sink",
+								"type": "DatasetReference",
+								"parameters": {}
+							}
+						]
 					}
 				],
 				"policy": {
@@ -67,7 +269,9 @@
 				"annotations": []
 			},
 			"dependsOn": [
-				"[concat(variables('factoryId'), '/datasets/ds_watermark_table')]"
+				"[concat(variables('factoryId'), '/datasets/ds_watermark_table')]",
+				"[concat(variables('factoryId'), '/datasets/ds_sales_orders_source')]",
+				"[concat(variables('factoryId'), '/datasets/ds_sales_order_sink')]"
 			]
 		},
 		{
