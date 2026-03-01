@@ -324,6 +324,39 @@
 								"parameters": {}
 							}
 						}
+					},
+					{
+						"name": "lkp_GetNewWatermark",
+						"type": "Lookup",
+						"dependsOn": [
+							{
+								"activity": "lkp_GetOldWatermark",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"source": {
+								"type": "AzureSqlSource",
+								"sqlReaderQuery": "SELECT MAX(order_id) AS new_id \r\n     FROM dbo.sales_orders",
+								"queryTimeout": "02:00:00",
+								"partitionOption": "None"
+							},
+							"dataset": {
+								"referenceName": "ds_SalesOrders_Source",
+								"type": "DatasetReference",
+								"parameters": {}
+							}
+						}
 					}
 				],
 				"policy": {
@@ -332,7 +365,8 @@
 				"annotations": []
 			},
 			"dependsOn": [
-				"[concat(variables('factoryId'), '/datasets/ds_DeltaWatermark_Table')]"
+				"[concat(variables('factoryId'), '/datasets/ds_DeltaWatermark_Table')]",
+				"[concat(variables('factoryId'), '/datasets/ds_SalesOrders_Source')]"
 			]
 		},
 		{
