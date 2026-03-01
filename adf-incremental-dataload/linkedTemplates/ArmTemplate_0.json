@@ -51,6 +51,66 @@
 			"dependsOn": []
 		},
 		{
+			"name": "[concat(parameters('factoryName'), '/ds_SalesOrders_Source')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "ls_azuresql_incremental_dataload",
+					"type": "LinkedServiceReference"
+				},
+				"annotations": [],
+				"type": "AzureSqlTable",
+				"schema": [
+					{
+						"name": "order_id",
+						"type": "int",
+						"precision": 10
+					},
+					{
+						"name": "customer_name",
+						"type": "varchar"
+					},
+					{
+						"name": "product",
+						"type": "varchar"
+					},
+					{
+						"name": "quantity",
+						"type": "int",
+						"precision": 10
+					},
+					{
+						"name": "unit_price",
+						"type": "float",
+						"precision": 15
+					},
+					{
+						"name": "total_amount",
+						"type": "float",
+						"precision": 15
+					},
+					{
+						"name": "order_status",
+						"type": "varchar"
+					},
+					{
+						"name": "modified_date",
+						"type": "datetime",
+						"precision": 23,
+						"scale": 3
+					}
+				],
+				"typeProperties": {
+					"schema": "dbo",
+					"table": "sales_orders"
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/linkedServices/ls_azuresql_incremental_dataload')]"
+			]
+		},
+		{
 			"name": "[concat(parameters('factoryName'), '/ds_sales_order_sink')]",
 			"type": "Microsoft.DataFactory/factories/datasets",
 			"apiVersion": "2018-06-01",
@@ -104,66 +164,6 @@
 				"typeProperties": {
 					"schema": "dbo",
 					"table": "sales_orders_sink"
-				}
-			},
-			"dependsOn": [
-				"[concat(variables('factoryId'), '/linkedServices/ls_azuresql_incremental_dataload')]"
-			]
-		},
-		{
-			"name": "[concat(parameters('factoryName'), '/ds_sales_orders_source')]",
-			"type": "Microsoft.DataFactory/factories/datasets",
-			"apiVersion": "2018-06-01",
-			"properties": {
-				"linkedServiceName": {
-					"referenceName": "ls_azuresql_incremental_dataload",
-					"type": "LinkedServiceReference"
-				},
-				"annotations": [],
-				"type": "AzureSqlTable",
-				"schema": [
-					{
-						"name": "order_id",
-						"type": "int",
-						"precision": 10
-					},
-					{
-						"name": "customer_name",
-						"type": "varchar"
-					},
-					{
-						"name": "product",
-						"type": "varchar"
-					},
-					{
-						"name": "quantity",
-						"type": "int",
-						"precision": 10
-					},
-					{
-						"name": "unit_price",
-						"type": "float",
-						"precision": 15
-					},
-					{
-						"name": "total_amount",
-						"type": "float",
-						"precision": 15
-					},
-					{
-						"name": "order_status",
-						"type": "varchar"
-					},
-					{
-						"name": "modified_date",
-						"type": "datetime",
-						"precision": 23,
-						"scale": 3
-					}
-				],
-				"typeProperties": {
-					"schema": "dbo",
-					"table": "sales_orders"
 				}
 			},
 			"dependsOn": [
@@ -256,12 +256,12 @@
 						"typeProperties": {
 							"source": {
 								"type": "AzureSqlSource",
-								"sqlReaderQuery": "SELECT\r\n   MAX(modified_date) as new_watermark\r\nFROM \r\n   db0.sales_orders",
+								"sqlReaderQuery": "SELECT MAX(modified_date) AS new_watermark \r\nFROM dbo.sales_orders",
 								"queryTimeout": "02:00:00",
 								"partitionOption": "None"
 							},
 							"dataset": {
-								"referenceName": "ds_sales_orders_source",
+								"referenceName": "ds_SalesOrders_Source",
 								"type": "DatasetReference",
 								"parameters": {}
 							}
@@ -290,7 +290,7 @@
 							"source": {
 								"type": "AzureSqlSource",
 								"sqlReaderQuery": {
-									"value": "SELECT * FROM dbo.sales_orders",
+									"value": "SELECT * FROM dbo.sales_orders\nWHERE modified_date > '@{activity('LKP_GetOldWatermark').output.firstRow.last_loaded_time}'\nAND modified_date <= '@{activity('LKP_GetNewWatermark').output.firstRow.new_watermark}'",
 									"type": "Expression"
 								},
 								"queryTimeout": "02:00:00",
@@ -423,7 +423,7 @@
 						},
 						"inputs": [
 							{
-								"referenceName": "ds_sales_orders_source",
+								"referenceName": "ds_SalesOrders_Source",
 								"type": "DatasetReference",
 								"parameters": {}
 							}
@@ -459,7 +459,10 @@
 							"storedProcedureName": "[[control].[usp_UpdateWatermark]",
 							"storedProcedureParameters": {
 								"last_loaded_time": {
-									"value": "",
+									"value": {
+										"value": "@formatDateTime(activity('LKP_GetNewWatermark').output.firstRow.new_watermark, 'yyyy-MM-dd HH:mm:ss')",
+										"type": "Expression"
+									},
 									"type": "DateTime"
 								},
 								"table_name": {
@@ -481,7 +484,7 @@
 			},
 			"dependsOn": [
 				"[concat(variables('factoryId'), '/datasets/ds_watermark_table')]",
-				"[concat(variables('factoryId'), '/datasets/ds_sales_orders_source')]",
+				"[concat(variables('factoryId'), '/datasets/ds_SalesOrders_Source')]",
 				"[concat(variables('factoryId'), '/datasets/ds_sales_order_sink')]",
 				"[concat(variables('factoryId'), '/linkedServices/ls_azuresql_incremental_dataload')]"
 			]
