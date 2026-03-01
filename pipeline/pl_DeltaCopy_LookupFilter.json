@@ -81,7 +81,10 @@
 				"typeProperties": {
 					"source": {
 						"type": "AzureSqlSource",
-						"sqlReaderQuery": "SELECT * FROM dbo.sales_orders\r\n     WHERE order_id > @{activity('LKP_GetOldWatermark').output.firstRow.last_id}\r\n     AND order_id <= @{activity('LKP_GetNewWatermark').output.firstRow.new_id}",
+						"sqlReaderQuery": {
+							"value": "SELECT * FROM dbo.sales_orders\r\n     WHERE order_id > @{activity('LKP_GetOldWatermark').output.firstRow.last_id}\r\n     AND order_id <= @{activity('LKP_GetNewWatermark').output.firstRow.new_id}",
+							"type": "Expression"
+						},
 						"queryTimeout": "02:00:00",
 						"partitionOption": "None"
 					},
@@ -222,6 +225,43 @@
 						"type": "DatasetReference"
 					}
 				]
+			},
+			{
+				"name": "sp_UpdateDeltaWatermark",
+				"type": "SqlServerStoredProcedure",
+				"dependsOn": [
+					{
+						"activity": "cpy_DeltaLoad",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"storedProcedureName": "[control].[usp_UpdateDeltaWatermark]",
+					"storedProcedureParameters": {
+						"last_id": {
+							"value": "@{activity('LKP_GetNewWatermark').output.firstRow.new_id}",
+							"type": "Int32"
+						},
+						"table_name": {
+							"value": "sales_orders",
+							"type": "String"
+						}
+					}
+				},
+				"linkedServiceName": {
+					"referenceName": "ls_azuresql_incremental_dataload",
+					"type": "LinkedServiceReference"
+				}
 			}
 		],
 		"annotations": []
