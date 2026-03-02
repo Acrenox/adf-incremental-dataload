@@ -29,6 +29,62 @@
 	},
 	"resources": [
 		{
+			"name": "[concat(parameters('factoryName'), '/pl_CDC_IncrementalLoad')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"activities": [
+					{
+						"name": "lkp_GetLastLSN",
+						"type": "Lookup",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"source": {
+								"type": "AzureSqlSource",
+								"sqlReaderQuery": "SELECT last_lsn FROM control.cdc_watermark\r\nWHERE table_name = 'sales_orders'",
+								"queryTimeout": "02:00:00",
+								"partitionOption": "None"
+							},
+							"dataset": {
+								"referenceName": "ds_CDCWatermark",
+								"type": "DatasetReference",
+								"parameters": {}
+							}
+						}
+					},
+					{
+						"name": "Lookup1",
+						"type": "Lookup",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {}
+					}
+				],
+				"policy": {
+					"elapsedTimeMetric": {}
+				},
+				"annotations": []
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/datasets/ds_CDCWatermark')]"
+			]
+		},
+		{
 			"name": "[concat(parameters('factoryName'), '/pl_DeltaCopy_LookupFilter')]",
 			"type": "Microsoft.DataFactory/factories/pipelines",
 			"apiVersion": "2018-06-01",
@@ -601,6 +657,36 @@
 				"[concat(variables('factoryId'), '/datasets/ds_Watermark_Table')]",
 				"[concat(variables('factoryId'), '/datasets/ds_SalesOrders_Source')]",
 				"[concat(variables('factoryId'), '/datasets/ds_SalesOrders_Sink')]",
+				"[concat(variables('factoryId'), '/linkedServices/ls_azuresql_incremental_dataload')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/ds_CDCWatermark')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "ls_azuresql_incremental_dataload",
+					"type": "LinkedServiceReference"
+				},
+				"annotations": [],
+				"type": "AzureSqlTable",
+				"schema": [
+					{
+						"name": "table_name",
+						"type": "varchar"
+					},
+					{
+						"name": "last_lsn",
+						"type": "binary"
+					}
+				],
+				"typeProperties": {
+					"schema": "control",
+					"table": "cdc_watermark"
+				}
+			},
+			"dependsOn": [
 				"[concat(variables('factoryId'), '/linkedServices/ls_azuresql_incremental_dataload')]"
 			]
 		},
