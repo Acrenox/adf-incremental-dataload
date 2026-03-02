@@ -1189,7 +1189,7 @@
 						"typeProperties": {
 							"source": {
 								"type": "AzureSqlSource",
-								"sqlReaderQuery": "WITH DateCTE AS (\r\n    SELECT \r\n        CAST(last_processed_date AS DATE) AS process_date\r\n    FROM control.foreach_watermark\r\n    WHERE table_name = 'sales_orders'\r\n\r\n    UNION ALL\r\n\r\n    SELECT \r\n        DATEADD(DAY, 1, process_date)\r\n    FROM DateCTE\r\n    WHERE process_date < CAST(GETDATE() AS DATE)\r\n)\r\nSELECT process_date\r\nFROM DateCTE\r\nOPTION (MAXRECURSION 365);",
+								"sqlReaderQuery": "WITH DateCTE AS (\r\n    SELECT \r\n        CAST(last_processed_date AS DATE) AS process_date\r\n    FROM control.foreach_watermark\r\n    WHERE table_name = 'sales_orders'\r\n\r\n    UNION ALL\r\n\r\n    SELECT \r\n        DATEADD(DAY, 1, process_date)\r\n    FROM DateCTE\r\n    WHERE process_date < CAST(GETDATE() AS DATE)\r\n)\r\nSELECT process_date\r\nFROM DateCTE\r\nOPTION (MAXRECURSION 10000);",
 								"queryTimeout": "02:00:00",
 								"partitionOption": "None"
 							},
@@ -1266,7 +1266,7 @@
 										"source": {
 											"type": "AzureSqlSource",
 											"sqlReaderQuery": {
-												"value": "SELECT\r\n    order_id,\r\n    customer_name,\r\n    product,\r\n    quantity,\r\n    unit_price,\r\n    total_amount,\r\n    order_status,\r\n    modified_date\r\nFROM dbo.sales_orders\r\nWHERE CAST(modified_date AS DATE) = '@{item().process_date}';",
+												"value": "SELECT\n    order_id,\n    customer_name,\n    product,\n    quantity,\n    unit_price,\n    total_amount,\n    order_status,\n    modified_date,\n    GETDATE() AS load_timestamp\nFROM dbo.sales_orders\nWHERE CAST(modified_date AS DATE) = '@{item().process_date}';",
 												"type": "Expression"
 											},
 											"queryTimeout": "02:00:00",
@@ -1383,7 +1383,9 @@
 												},
 												{
 													"source": {
-														"name": "load_timestamp"
+														"name": "load_timestamp",
+														"type": "DateTime",
+														"physicalType": "datetime"
 													},
 													"sink": {
 														"name": "load_timestamp",
