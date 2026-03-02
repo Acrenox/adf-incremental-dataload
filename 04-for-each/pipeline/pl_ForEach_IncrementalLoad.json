@@ -1,0 +1,313 @@
+{
+	"name": "pl_ForEach_IncrementalLoad",
+	"properties": {
+		"activities": [
+			{
+				"name": "lkp_GetLastProcessedDate",
+				"type": "Lookup",
+				"dependsOn": [],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"source": {
+						"type": "AzureSqlSource",
+						"sqlReaderQuery": "SELECT last_processed_date\r\nFROM control.foreach_watermark\r\nWHERE table_name = 'sales_orders';",
+						"queryTimeout": "02:00:00",
+						"partitionOption": "None"
+					},
+					"dataset": {
+						"referenceName": "ds_SalesOrders_Source",
+						"type": "DatasetReference"
+					}
+				}
+			},
+			{
+				"name": "lkp_Generate_Process_Dates",
+				"type": "Lookup",
+				"dependsOn": [
+					{
+						"activity": "lkp_GetLastProcessedDate",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"source": {
+						"type": "AzureSqlSource",
+						"sqlReaderQuery": "WITH DateCTE AS (\r\n    SELECT \r\n        CAST(last_processed_date AS DATE) AS process_date\r\n    FROM control.foreach_watermark\r\n    WHERE table_name = 'sales_orders'\r\n\r\n    UNION ALL\r\n\r\n    SELECT \r\n        DATEADD(DAY, 1, process_date)\r\n    FROM DateCTE\r\n    WHERE process_date < CAST(GETDATE() AS DATE)\r\n)\r\nSELECT process_date\r\nFROM DateCTE\r\nOPTION (MAXRECURSION 365);",
+						"queryTimeout": "02:00:00",
+						"partitionOption": "None"
+					},
+					"dataset": {
+						"referenceName": "ds_ForEachWatermark",
+						"type": "DatasetReference"
+					},
+					"firstRowOnly": false
+				}
+			},
+			{
+				"name": "fe_ProcessDates",
+				"type": "ForEach",
+				"dependsOn": [
+					{
+						"activity": "lkp_Generate_Process_Dates",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"userProperties": [],
+				"typeProperties": {
+					"items": {
+						"value": "@activity('lkp_Generate_Process_Dates').output.value",
+						"type": "Expression"
+					},
+					"batchCount": 5,
+					"activities": [
+						{
+							"name": "gm_Check_Source_Table",
+							"type": "GetMetadata",
+							"dependsOn": [],
+							"policy": {
+								"timeout": "0.12:00:00",
+								"retry": 0,
+								"retryIntervalInSeconds": 30,
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"dataset": {
+									"referenceName": "ds_SalesOrders_Source",
+									"type": "DatasetReference"
+								},
+								"fieldList": [
+									"exists"
+								]
+							}
+						},
+						{
+							"name": "cpy_sales_orders_incremental",
+							"type": "Copy",
+							"dependsOn": [
+								{
+									"activity": "gm_Check_Source_Table",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
+							"policy": {
+								"timeout": "0.12:00:00",
+								"retry": 0,
+								"retryIntervalInSeconds": 30,
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"source": {
+									"type": "AzureSqlSource",
+									"sqlReaderQuery": "SELECT\r\n    order_id,\r\n    customer_name,\r\n    product,\r\n    quantity,\r\n    unit_price,\r\n    total_amount,\r\n    order_status,\r\n    modified_date\r\nFROM dbo.sales_orders\r\nWHERE CAST(modified_date AS DATE) = '@{item().process_date}';",
+									"queryTimeout": "02:00:00",
+									"partitionOption": "None"
+								},
+								"sink": {
+									"type": "AzureSqlSink",
+									"writeBehavior": "insert",
+									"sqlWriterUseTableLock": false
+								},
+								"enableStaging": false,
+								"translator": {
+									"type": "TabularTranslator",
+									"mappings": [
+										{
+											"source": {
+												"name": "order_id",
+												"type": "Int32",
+												"physicalType": "int"
+											},
+											"sink": {
+												"name": "order_id",
+												"type": "Int32",
+												"physicalType": "int"
+											}
+										},
+										{
+											"source": {
+												"name": "customer_name",
+												"type": "String",
+												"physicalType": "varchar"
+											},
+											"sink": {
+												"name": "customer_name",
+												"type": "String",
+												"physicalType": "varchar"
+											}
+										},
+										{
+											"source": {
+												"name": "product",
+												"type": "String",
+												"physicalType": "varchar"
+											},
+											"sink": {
+												"name": "product",
+												"type": "String",
+												"physicalType": "varchar"
+											}
+										},
+										{
+											"source": {
+												"name": "quantity",
+												"type": "Int32",
+												"physicalType": "int"
+											},
+											"sink": {
+												"name": "quantity",
+												"type": "Int32",
+												"physicalType": "int"
+											}
+										},
+										{
+											"source": {
+												"name": "unit_price",
+												"type": "Double",
+												"physicalType": "float"
+											},
+											"sink": {
+												"name": "unit_price",
+												"type": "Decimal",
+												"physicalType": "decimal",
+												"scale": 2,
+												"precision": 10
+											}
+										},
+										{
+											"source": {
+												"name": "total_amount",
+												"type": "Double",
+												"physicalType": "float"
+											},
+											"sink": {
+												"name": "total_amount",
+												"type": "Decimal",
+												"physicalType": "decimal",
+												"scale": 2,
+												"precision": 10
+											}
+										},
+										{
+											"source": {
+												"name": "order_status",
+												"type": "String",
+												"physicalType": "varchar"
+											},
+											"sink": {
+												"name": "order_status",
+												"type": "String",
+												"physicalType": "varchar"
+											}
+										},
+										{
+											"source": {
+												"name": "modified_date",
+												"type": "DateTime",
+												"physicalType": "datetime"
+											},
+											"sink": {
+												"name": "modified_date",
+												"type": "DateTime",
+												"physicalType": "datetime2"
+											}
+										},
+										{
+											"source": {
+												"name": "load_timestamp"
+											},
+											"sink": {
+												"name": "load_timestamp",
+												"type": "DateTime",
+												"physicalType": "datetime2"
+											}
+										}
+									],
+									"typeConversion": true,
+									"typeConversionSettings": {
+										"allowDataTruncation": true,
+										"treatBooleanAsNumber": false
+									}
+								}
+							},
+							"inputs": [
+								{
+									"referenceName": "ds_SalesOrders_Source",
+									"type": "DatasetReference"
+								}
+							],
+							"outputs": [
+								{
+									"referenceName": "ds_SalesOrders_ForEachSink",
+									"type": "DatasetReference"
+								}
+							]
+						},
+						{
+							"name": "sp_UpdateForEachWatermark",
+							"type": "SqlServerStoredProcedure",
+							"dependsOn": [
+								{
+									"activity": "cpy_sales_orders_incremental",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
+							"policy": {
+								"timeout": "0.12:00:00",
+								"retry": 0,
+								"retryIntervalInSeconds": 30,
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"storedProcedureName": "[control].[usp_UpdateForEachWatermark]",
+								"storedProcedureParameters": {
+									"last_processed_date": {
+										"value": "@item().process_date",
+										"type": "DateTime"
+									},
+									"table_name": {
+										"value": "sales_orders",
+										"type": "String"
+									}
+								}
+							},
+							"linkedServiceName": {
+								"referenceName": "ls_azuresql_incremental_dataload",
+								"type": "LinkedServiceReference"
+							}
+						}
+					]
+				}
+			}
+		],
+		"annotations": []
+	}
+}

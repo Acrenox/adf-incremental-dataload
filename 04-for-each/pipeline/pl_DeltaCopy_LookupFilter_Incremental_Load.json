@@ -1,5 +1,5 @@
 {
-	"name": "pl_DeltaCopy_LookupFilter",
+	"name": "pl_DeltaCopy_LookupFilter_Incremental_Load",
 	"properties": {
 		"activities": [
 			{

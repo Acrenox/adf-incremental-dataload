@@ -1,5 +1,5 @@
 {
-	"name": "ds_sales_orders_sink",
+	"name": "ds_SalesOrders_ForEachSink",
 	"properties": {
 		"linkedServiceName": {
 			"referenceName": "ls_azuresql_incremental_dataload",
@@ -28,13 +28,15 @@
 			},
 			{
 				"name": "unit_price",
-				"type": "float",
-				"precision": 15
+				"type": "decimal",
+				"precision": 10,
+				"scale": 2
 			},
 			{
 				"name": "total_amount",
-				"type": "float",
-				"precision": 15
+				"type": "decimal",
+				"precision": 10,
+				"scale": 2
 			},
 			{
 				"name": "order_status",
@@ -42,15 +44,18 @@
 			},
 			{
 				"name": "modified_date",
-				"type": "datetime",
-				"precision": 23,
-				"scale": 3
+				"type": "datetime2",
+				"scale": 7
+			},
+			{
+				"name": "load_timestamp",
+				"type": "datetime2",
+				"scale": 7
 			}
 		],
 		"typeProperties": {
 			"schema": "dbo",
-			"table": "sales_orders_sink"
+			"table": "sales_orders_foreach_sink"
 		}
-	},
-	"type": "Microsoft.DataFactory/factories/datasets"
+	}
 }

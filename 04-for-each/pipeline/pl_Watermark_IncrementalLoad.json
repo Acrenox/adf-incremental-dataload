@@ -221,7 +221,7 @@
 				],
 				"outputs": [
 					{
-						"referenceName": "ds_SalesOrders_Sink",
+						"referenceName": "ds_sales_orders_sink",
 						"type": "DatasetReference"
 					}
 				]
