@@ -1,0 +1,28 @@
+{
+	"name": "ds_Watermark_Table",
+	"properties": {
+		"linkedServiceName": {
+			"referenceName": "ls_azuresql_incremental_dataload",
+			"type": "LinkedServiceReference"
+		},
+		"annotations": [],
+		"type": "AzureSqlTable",
+		"schema": [
+			{
+				"name": "table_name",
+				"type": "varchar"
+			},
+			{
+				"name": "last_loaded_time",
+				"type": "datetime",
+				"precision": 23,
+				"scale": 3
+			}
+		],
+		"typeProperties": {
+			"schema": "control",
+			"table": "watermark_table"
+		}
+	},
+	"type": "Microsoft.DataFactory/factories/datasets"
+}

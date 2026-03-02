@@ -1,0 +1,282 @@
+{
+	"name": "pl_CDC_IncrementalLoad",
+	"properties": {
+		"activities": [
+			{
+				"name": "lkp_GetLastLSN",
+				"type": "Lookup",
+				"dependsOn": [],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"source": {
+						"type": "AzureSqlSource",
+						"sqlReaderQuery": "SELECT CONVERT(VARCHAR(100), last_lsn, 1) AS last_lsn\nFROM control.cdc_watermark\nWHERE table_name = 'sales_orders'",
+						"queryTimeout": "02:00:00",
+						"partitionOption": "None"
+					},
+					"dataset": {
+						"referenceName": "ds_CDCWatermark",
+						"type": "DatasetReference"
+					}
+				}
+			},
+			{
+				"name": "lkp_GetCurrentLSN",
+				"type": "Lookup",
+				"dependsOn": [
+					{
+						"activity": "lkp_GetLastLSN",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"source": {
+						"type": "AzureSqlSource",
+						"sqlReaderQuery": "INSERT INTO control.cdc_lsn_stage (lsn_value)\nSELECT CONVERT(VARCHAR(100), sys.fn_cdc_get_max_lsn(), 1);\n\nSELECT TOP 1 lsn_value AS current_lsn \nFROM control.cdc_lsn_stage \nORDER BY created_at DESC;",
+						"queryTimeout": "02:00:00",
+						"partitionOption": "None"
+					},
+					"dataset": {
+						"referenceName": "ds_CDCWatermark",
+						"type": "DatasetReference"
+					}
+				}
+			},
+			{
+				"name": "cpy_CDCLoad",
+				"type": "Copy",
+				"dependsOn": [
+					{
+						"activity": "lkp_GetCurrentLSN",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"source": {
+						"type": "AzureSqlSource",
+						"sqlReaderQuery": {
+							"value": "SELECT \n    order_id,\n    customer_name,\n    product,\n    quantity,\n    unit_price,\n    total_amount,\n    order_status,\n    modified_date,\n    CASE __$operation\n        WHEN 1 THEN 'DELETE'\n        WHEN 2 THEN 'INSERT'\n        WHEN 4 THEN 'UPDATE'\n    END AS cdc_operation\nFROM cdc.fn_cdc_get_all_changes_dbo_sales_orders(\n    CONVERT(BINARY(10), '@{activity('LKP_GetLastLSN').output.firstRow.last_lsn}', 1),\n    CONVERT(BINARY(10), '@{activity('LKP_GetCurrentLSN').output.firstRow.current_lsn}', 1),\n    'all'\n)",
+							"type": "Expression"
+						},
+						"queryTimeout": "02:00:00",
+						"partitionOption": "None"
+					},
+					"sink": {
+						"type": "AzureSqlSink",
+						"writeBehavior": "insert",
+						"sqlWriterUseTableLock": false
+					},
+					"enableStaging": false,
+					"translator": {
+						"type": "TabularTranslator",
+						"mappings": [
+							{
+								"source": {
+									"name": "order_id",
+									"type": "int",
+									"physicalType": "int",
+									"precision": 10
+								},
+								"sink": {
+									"name": "order_id",
+									"type": "int",
+									"physicalType": "int",
+									"precision": 10
+								}
+							},
+							{
+								"source": {
+									"name": "customer_name",
+									"type": "varchar",
+									"physicalType": "varchar"
+								},
+								"sink": {
+									"name": "customer_name",
+									"type": "varchar",
+									"physicalType": "varchar"
+								}
+							},
+							{
+								"source": {
+									"name": "product",
+									"type": "varchar",
+									"physicalType": "varchar"
+								},
+								"sink": {
+									"name": "product",
+									"type": "varchar",
+									"physicalType": "varchar"
+								}
+							},
+							{
+								"source": {
+									"name": "quantity",
+									"type": "int",
+									"physicalType": "int",
+									"precision": 10
+								},
+								"sink": {
+									"name": "quantity",
+									"type": "int",
+									"physicalType": "int",
+									"precision": 10
+								}
+							},
+							{
+								"source": {
+									"name": "unit_price",
+									"type": "float",
+									"physicalType": "float",
+									"precision": 15
+								},
+								"sink": {
+									"name": "unit_price",
+									"type": "float",
+									"physicalType": "float",
+									"precision": 15
+								}
+							},
+							{
+								"source": {
+									"name": "total_amount",
+									"type": "float",
+									"physicalType": "float",
+									"precision": 15
+								},
+								"sink": {
+									"name": "total_amount",
+									"type": "float",
+									"physicalType": "float",
+									"precision": 15
+								}
+							},
+							{
+								"source": {
+									"name": "order_status",
+									"type": "varchar",
+									"physicalType": "varchar"
+								},
+								"sink": {
+									"name": "order_status",
+									"type": "varchar",
+									"physicalType": "varchar"
+								}
+							},
+							{
+								"source": {
+									"name": "modified_date",
+									"type": "datetime",
+									"physicalType": "datetime",
+									"scale": 3,
+									"precision": 23
+								},
+								"sink": {
+									"name": "modified_date",
+									"type": "datetime",
+									"physicalType": "datetime",
+									"scale": 3,
+									"precision": 23
+								}
+							},
+							{
+								"source": {
+									"name": "cdc_operation"
+								},
+								"sink": {
+									"name": "cdc_operation",
+									"type": "varchar",
+									"physicalType": "varchar"
+								}
+							}
+						],
+						"typeConversion": true,
+						"typeConversionSettings": {
+							"allowDataTruncation": true,
+							"treatBooleanAsNumber": false
+						}
+					}
+				},
+				"inputs": [
+					{
+						"referenceName": "ds_SalesOrders_Source",
+						"type": "DatasetReference"
+					}
+				],
+				"outputs": [
+					{
+						"referenceName": "ds_SalesOrders_CDCSink",
+						"type": "DatasetReference"
+					}
+				]
+			},
+			{
+				"name": "sp_UpdateCDCWatermark",
+				"type": "SqlServerStoredProcedure",
+				"dependsOn": [
+					{
+						"activity": "cpy_CDCLoad",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"storedProcedureName": "[control].[usp_UpdateCDCWatermark]",
+					"storedProcedureParameters": {
+						"last_lsn": {
+							"value": {
+								"value": "@{activity('lkp_GetCurrentLSN').output.firstRow.current_lsn}",
+								"type": "Expression"
+							},
+							"type": "String"
+						},
+						"table_name": {
+							"value": "sales_orders",
+							"type": "String"
+						}
+					}
+				},
+				"linkedServiceName": {
+					"referenceName": "ls_azuresql_incremental_dataload",
+					"type": "LinkedServiceReference"
+				}
+			}
+		],
+		"annotations": []
+	}
+}
