@@ -235,6 +235,46 @@
 						"type": "DatasetReference"
 					}
 				]
+			},
+			{
+				"name": "sp_UpdateCDCWatermark",
+				"type": "SqlServerStoredProcedure",
+				"dependsOn": [
+					{
+						"activity": "cpy_CDCLoad",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"storedProcedureName": "[control].[usp_UpdateCDCWatermark]",
+					"storedProcedureParameters": {
+						"last_lsn": {
+							"value": {
+								"value": "@{activity('lkp_GetCurrentLSN').output.firstRow.current_lsn}",
+								"type": "Expression"
+							},
+							"type": "Byte[]"
+						},
+						"table_name": {
+							"value": "sales_orders",
+							"type": "String"
+						}
+					}
+				},
+				"linkedServiceName": {
+					"referenceName": "ls_azuresql_incremental_dataload",
+					"type": "LinkedServiceReference"
+				}
 			}
 		],
 		"annotations": []
