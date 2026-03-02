@@ -17,7 +17,7 @@
 				"typeProperties": {
 					"source": {
 						"type": "AzureSqlSource",
-						"sqlReaderQuery": "SELECT CONVERT(VARCHAR(100), last_lsn, 1) AS last_lsn \r\nFROM control.cdc_watermark\r\nWHERE table_name = 'sales_orders'",
+						"sqlReaderQuery": "SELECT CONVERT(VARCHAR(100), last_lsn, 1) AS last_lsn\nFROM control.cdc_watermark\nWHERE table_name = 'sales_orders'",
 						"queryTimeout": "02:00:00",
 						"partitionOption": "None"
 					},
@@ -82,7 +82,7 @@
 					"source": {
 						"type": "AzureSqlSource",
 						"sqlReaderQuery": {
-							"value": "SELECT \n    order_id,\n    customer_name,\n    product,\n    quantity,\n    unit_price,\n    total_amount,\n    order_status,\n    modified_date,\n    CASE __$operation\n        WHEN 1 THEN 'DELETE'\n        WHEN 2 THEN 'INSERT'\n        WHEN 4 THEN 'UPDATE'\n    END AS cdc_operation\nFROM cdc.fn_cdc_get_all_changes_dbo_sales_orders(\n    sys.fn_cdc_get_min_lsn('dbo_sales_orders'),\n    sys.fn_cdc_get_max_lsn(),\n    'all'\n)",
+							"value": "SELECT \n    order_id,\n    customer_name,\n    product,\n    quantity,\n    unit_price,\n    total_amount,\n    order_status,\n    modified_date,\n    CASE __$operation\n        WHEN 1 THEN 'DELETE'\n        WHEN 2 THEN 'INSERT'\n        WHEN 4 THEN 'UPDATE'\n    END AS cdc_operation\nFROM cdc.fn_cdc_get_all_changes_dbo_sales_orders(\n    CONVERT(BINARY(10), '@{activity('LKP_GetLastLSN').output.firstRow.last_lsn}', 1),\n    CONVERT(BINARY(10), '@{activity('LKP_GetCurrentLSN').output.firstRow.current_lsn}', 1),\n    'all'\n)",
 							"type": "Expression"
 						},
 						"queryTimeout": "02:00:00",
