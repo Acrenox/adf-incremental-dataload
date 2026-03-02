@@ -116,7 +116,7 @@
 							"source": {
 								"type": "AzureSqlSource",
 								"sqlReaderQuery": {
-									"value": "DECLARE @from_lsn binary(10), @to_lsn binary(10);\n     SET @from_lsn = @{activity('LKP_GetLastLSN').output.firstRow.last_lsn};\n     SET @to_lsn = @{activity('LKP_GetCurrentLSN').output.firstRow.current_lsn};\n     SELECT \n         order_id,\n         customer_name,\n         product,\n         quantity,\n         unit_price,\n         total_amount,\n         order_status,\n         modified_date,\n         CASE __$operation\n             WHEN 1 THEN 'DELETE'\n             WHEN 2 THEN 'INSERT'\n             WHEN 4 THEN 'UPDATE'\n         END AS cdc_operation\n     FROM cdc.fn_cdc_get_all_changes_dbo_sales_orders(@from_lsn, @to_lsn, 'all')",
+									"value": "SELECT \n    order_id,\n    customer_name,\n    product,\n    quantity,\n    unit_price,\n    total_amount,\n    order_status,\n    modified_date,\n    CASE __$operation\n        WHEN 1 THEN 'DELETE'\n        WHEN 2 THEN 'INSERT'\n        WHEN 4 THEN 'UPDATE'\n    END AS cdc_operation\nFROM cdc.fn_cdc_get_all_changes_dbo_sales_orders(\n    sys.fn_cdc_get_min_lsn('dbo_sales_orders'),\n    sys.fn_cdc_get_max_lsn(),\n    'all'\n)",
 									"type": "Expression"
 								},
 								"queryTimeout": "02:00:00",
