@@ -511,6 +511,185 @@
 								"parameters": {}
 							}
 						}
+					},
+					{
+						"name": "cpy_CDCLoad",
+						"type": "Copy",
+						"dependsOn": [
+							{
+								"activity": "lkp_GetCurrentLSN",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"source": {
+								"type": "AzureSqlSource",
+								"sqlReaderQuery": {
+									"value": "DECLARE @from_lsn binary(10), @to_lsn binary(10);\n     SET @from_lsn = @{activity('LKP_GetLastLSN').output.firstRow.last_lsn};\n     SET @to_lsn = @{activity('LKP_GetCurrentLSN').output.firstRow.current_lsn};\n     SELECT \n         order_id,\n         customer_name,\n         product,\n         quantity,\n         unit_price,\n         total_amount,\n         order_status,\n         modified_date,\n         CASE __$operation\n             WHEN 1 THEN 'DELETE'\n             WHEN 2 THEN 'INSERT'\n             WHEN 4 THEN 'UPDATE'\n         END AS cdc_operation\n     FROM cdc.fn_cdc_get_all_changes_dbo_sales_orders(@from_lsn, @to_lsn, 'all')",
+									"type": "Expression"
+								},
+								"queryTimeout": "02:00:00",
+								"partitionOption": "None"
+							},
+							"sink": {
+								"type": "AzureSqlSink",
+								"writeBehavior": "insert",
+								"sqlWriterUseTableLock": false
+							},
+							"enableStaging": false,
+							"translator": {
+								"type": "TabularTranslator",
+								"mappings": [
+									{
+										"source": {
+											"name": "order_id",
+											"type": "int",
+											"physicalType": "int",
+											"precision": 10
+										},
+										"sink": {
+											"name": "order_id",
+											"type": "int",
+											"physicalType": "int",
+											"precision": 10
+										}
+									},
+									{
+										"source": {
+											"name": "customer_name",
+											"type": "varchar",
+											"physicalType": "varchar"
+										},
+										"sink": {
+											"name": "customer_name",
+											"type": "varchar",
+											"physicalType": "varchar"
+										}
+									},
+									{
+										"source": {
+											"name": "product",
+											"type": "varchar",
+											"physicalType": "varchar"
+										},
+										"sink": {
+											"name": "product",
+											"type": "varchar",
+											"physicalType": "varchar"
+										}
+									},
+									{
+										"source": {
+											"name": "quantity",
+											"type": "int",
+											"physicalType": "int",
+											"precision": 10
+										},
+										"sink": {
+											"name": "quantity",
+											"type": "int",
+											"physicalType": "int",
+											"precision": 10
+										}
+									},
+									{
+										"source": {
+											"name": "unit_price",
+											"type": "float",
+											"physicalType": "float",
+											"precision": 15
+										},
+										"sink": {
+											"name": "unit_price",
+											"type": "float",
+											"physicalType": "float",
+											"precision": 15
+										}
+									},
+									{
+										"source": {
+											"name": "total_amount",
+											"type": "float",
+											"physicalType": "float",
+											"precision": 15
+										},
+										"sink": {
+											"name": "total_amount",
+											"type": "float",
+											"physicalType": "float",
+											"precision": 15
+										}
+									},
+									{
+										"source": {
+											"name": "order_status",
+											"type": "varchar",
+											"physicalType": "varchar"
+										},
+										"sink": {
+											"name": "order_status",
+											"type": "varchar",
+											"physicalType": "varchar"
+										}
+									},
+									{
+										"source": {
+											"name": "modified_date",
+											"type": "datetime",
+											"physicalType": "datetime",
+											"scale": 3,
+											"precision": 23
+										},
+										"sink": {
+											"name": "modified_date",
+											"type": "datetime",
+											"physicalType": "datetime",
+											"scale": 3,
+											"precision": 23
+										}
+									},
+									{
+										"source": {
+											"name": "cdc_operation"
+										},
+										"sink": {
+											"name": "cdc_operation",
+											"type": "varchar",
+											"physicalType": "varchar"
+										}
+									}
+								],
+								"typeConversion": true,
+								"typeConversionSettings": {
+									"allowDataTruncation": true,
+									"treatBooleanAsNumber": false
+								}
+							}
+						},
+						"inputs": [
+							{
+								"referenceName": "ds_SalesOrders_Source",
+								"type": "DatasetReference",
+								"parameters": {}
+							}
+						],
+						"outputs": [
+							{
+								"referenceName": "ds_SalesOrders_CDCSink",
+								"type": "DatasetReference",
+								"parameters": {}
+							}
+						]
 					}
 				],
 				"policy": {
@@ -519,7 +698,9 @@
 				"annotations": []
 			},
 			"dependsOn": [
-				"[concat(variables('factoryId'), '/datasets/ds_CDCWatermark')]"
+				"[concat(variables('factoryId'), '/datasets/ds_CDCWatermark')]",
+				"[concat(variables('factoryId'), '/datasets/ds_SalesOrders_Source')]",
+				"[concat(variables('factoryId'), '/datasets/ds_SalesOrders_CDCSink')]"
 			]
 		},
 		{
