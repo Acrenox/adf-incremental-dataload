@@ -1,0 +1,17 @@
+{
+	"name": "ls_azuresql_incremental_dataload",
+	"type": "Microsoft.DataFactory/factories/linkedservices",
+	"properties": {
+		"annotations": [],
+		"type": "AzureSqlDatabase",
+		"typeProperties": {
+			"server": "sqlserver-incremental-dataload.database.windows.net",
+			"database": "sqldb-incremental-dataload",
+			"encrypt": "mandatory",
+			"trustServerCertificate": true,
+			"authenticationType": "SQL",
+			"userName": "sqladmin",
+			"encryptedCredential": "ew0KICAiVmVyc2lvbiI6ICIyMDE3LTExLTMwIiwNCiAgIlByb3RlY3Rpb25Nb2RlIjogIktleSIsDQogICJTZWNyZXRDb250ZW50VHlwZSI6ICJQbGFpbnRleHQiLA0KICAiQ3JlZGVudGlhbElkIjogIkRBVEFGQUNUT1JZQDRFMUFCNjYyLUQ5MUYtNDA1MC1BMzAyLTU2NTZEOEQwNTkwN181Yjk5NjdkMy02ZGFhLTQ5YzUtOWY1Mi1kYzU1MzZhZmE5ZDgiDQp9"
+		}
+	}
+}
