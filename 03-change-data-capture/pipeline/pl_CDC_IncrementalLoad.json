@@ -263,7 +263,7 @@
 								"value": "@{activity('lkp_GetCurrentLSN').output.firstRow.current_lsn}",
 								"type": "Expression"
 							},
-							"type": "Byte[]"
+							"type": "String"
 						},
 						"table_name": {
 							"value": "sales_orders",
