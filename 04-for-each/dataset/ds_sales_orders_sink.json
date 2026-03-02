@@ -1,5 +1,5 @@
 {
-	"name": "ds_sales_order_sink",
+	"name": "ds_SalesOrders_Sink",
 	"properties": {
 		"linkedServiceName": {
 			"referenceName": "ls_azuresql_incremental_dataload",
