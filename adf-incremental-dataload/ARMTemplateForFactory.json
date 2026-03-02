@@ -49,7 +49,7 @@
 						"typeProperties": {
 							"source": {
 								"type": "AzureSqlSource",
-								"sqlReaderQuery": "SELECT last_lsn FROM control.cdc_watermark\r\nWHERE table_name = 'sales_orders'",
+								"sqlReaderQuery": "SELECT CONVERT(VARCHAR(100), last_lsn, 1) AS last_lsn \r\nFROM control.cdc_watermark\r\nWHERE table_name = 'sales_orders'",
 								"queryTimeout": "02:00:00",
 								"partitionOption": "None"
 							},
