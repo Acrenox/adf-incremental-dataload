@@ -468,7 +468,7 @@
 						"typeProperties": {
 							"source": {
 								"type": "AzureSqlSource",
-								"sqlReaderQuery": "SELECT CONVERT(VARCHAR(100), last_lsn, 1) AS last_lsn \r\nFROM control.cdc_watermark\r\nWHERE table_name = 'sales_orders'",
+								"sqlReaderQuery": "SELECT CONVERT(VARCHAR(100), last_lsn, 1) AS last_lsn\nFROM control.cdc_watermark\nWHERE table_name = 'sales_orders'",
 								"queryTimeout": "02:00:00",
 								"partitionOption": "None"
 							},
@@ -501,7 +501,7 @@
 						"typeProperties": {
 							"source": {
 								"type": "AzureSqlSource",
-								"sqlReaderQuery": "SELECT sys.fn_cdc_get_max_lsn() AS current_lsn",
+								"sqlReaderQuery": "INSERT INTO control.cdc_lsn_stage (lsn_value)\nSELECT CONVERT(VARCHAR(100), sys.fn_cdc_get_max_lsn(), 1);\n\nSELECT TOP 1 lsn_value AS current_lsn \nFROM control.cdc_lsn_stage \nORDER BY created_at DESC;",
 								"queryTimeout": "02:00:00",
 								"partitionOption": "None"
 							},
