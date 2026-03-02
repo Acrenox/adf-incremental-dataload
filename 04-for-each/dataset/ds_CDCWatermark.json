@@ -1,0 +1,26 @@
+{
+	"name": "ds_CDCWatermark",
+	"properties": {
+		"linkedServiceName": {
+			"referenceName": "ls_azuresql_incremental_dataload",
+			"type": "LinkedServiceReference"
+		},
+		"annotations": [],
+		"type": "AzureSqlTable",
+		"schema": [
+			{
+				"name": "table_name",
+				"type": "varchar"
+			},
+			{
+				"name": "last_lsn",
+				"type": "binary"
+			}
+		],
+		"typeProperties": {
+			"schema": "control",
+			"table": "cdc_watermark"
+		}
+	},
+	"type": "Microsoft.DataFactory/factories/datasets"
+}

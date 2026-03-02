@@ -1,0 +1,274 @@
+{
+	"name": "pl_DeltaCopy_LookupFilter_Incremental_Load",
+	"properties": {
+		"activities": [
+			{
+				"name": "lkp_GetOldWatermark",
+				"type": "Lookup",
+				"dependsOn": [],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"source": {
+						"type": "AzureSqlSource",
+						"sqlReaderQuery": "SELECT last_id FROM control.delta_watermark\r\nWHERE table_name = 'sales_orders'",
+						"queryTimeout": "02:00:00",
+						"partitionOption": "None"
+					},
+					"dataset": {
+						"referenceName": "ds_DeltaWatermark_Table",
+						"type": "DatasetReference"
+					}
+				}
+			},
+			{
+				"name": "lkp_GetNewWatermark",
+				"type": "Lookup",
+				"dependsOn": [
+					{
+						"activity": "lkp_GetOldWatermark",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"source": {
+						"type": "AzureSqlSource",
+						"sqlReaderQuery": "SELECT MAX(order_id) AS new_id \r\n     FROM dbo.sales_orders",
+						"queryTimeout": "02:00:00",
+						"partitionOption": "None"
+					},
+					"dataset": {
+						"referenceName": "ds_SalesOrders_Source",
+						"type": "DatasetReference"
+					}
+				}
+			},
+			{
+				"name": "cpy_DeltaLoad",
+				"type": "Copy",
+				"dependsOn": [
+					{
+						"activity": "lkp_GetNewWatermark",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"source": {
+						"type": "AzureSqlSource",
+						"sqlReaderQuery": {
+							"value": "SELECT * FROM dbo.sales_orders\r\n     WHERE order_id > @{activity('LKP_GetOldWatermark').output.firstRow.last_id}\r\n     AND order_id <= @{activity('LKP_GetNewWatermark').output.firstRow.new_id}",
+							"type": "Expression"
+						},
+						"queryTimeout": "02:00:00",
+						"partitionOption": "None"
+					},
+					"sink": {
+						"type": "AzureSqlSink",
+						"writeBehavior": "insert",
+						"sqlWriterUseTableLock": false
+					},
+					"enableStaging": false,
+					"translator": {
+						"type": "TabularTranslator",
+						"mappings": [
+							{
+								"source": {
+									"name": "order_id",
+									"type": "int",
+									"physicalType": "int",
+									"precision": 10
+								},
+								"sink": {
+									"name": "order_id",
+									"type": "int",
+									"physicalType": "int",
+									"precision": 10
+								}
+							},
+							{
+								"source": {
+									"name": "customer_name",
+									"type": "varchar",
+									"physicalType": "varchar"
+								},
+								"sink": {
+									"name": "customer_name",
+									"type": "varchar",
+									"physicalType": "varchar"
+								}
+							},
+							{
+								"source": {
+									"name": "product",
+									"type": "varchar",
+									"physicalType": "varchar"
+								},
+								"sink": {
+									"name": "product",
+									"type": "varchar",
+									"physicalType": "varchar"
+								}
+							},
+							{
+								"source": {
+									"name": "quantity",
+									"type": "int",
+									"physicalType": "int",
+									"precision": 10
+								},
+								"sink": {
+									"name": "quantity",
+									"type": "int",
+									"physicalType": "int",
+									"precision": 10
+								}
+							},
+							{
+								"source": {
+									"name": "unit_price",
+									"type": "float",
+									"physicalType": "float",
+									"precision": 15
+								},
+								"sink": {
+									"name": "unit_price",
+									"type": "float",
+									"physicalType": "float",
+									"precision": 15
+								}
+							},
+							{
+								"source": {
+									"name": "total_amount",
+									"type": "float",
+									"physicalType": "float",
+									"precision": 15
+								},
+								"sink": {
+									"name": "total_amount",
+									"type": "float",
+									"physicalType": "float",
+									"precision": 15
+								}
+							},
+							{
+								"source": {
+									"name": "order_status",
+									"type": "varchar",
+									"physicalType": "varchar"
+								},
+								"sink": {
+									"name": "order_status",
+									"type": "varchar",
+									"physicalType": "varchar"
+								}
+							},
+							{
+								"source": {
+									"name": "modified_date",
+									"type": "datetime",
+									"physicalType": "datetime",
+									"scale": 3,
+									"precision": 23
+								},
+								"sink": {
+									"name": "modified_date",
+									"type": "datetime",
+									"physicalType": "datetime",
+									"scale": 3,
+									"precision": 23
+								}
+							}
+						],
+						"typeConversion": true,
+						"typeConversionSettings": {
+							"allowDataTruncation": true,
+							"treatBooleanAsNumber": false
+						}
+					}
+				},
+				"inputs": [
+					{
+						"referenceName": "ds_SalesOrders_Source",
+						"type": "DatasetReference"
+					}
+				],
+				"outputs": [
+					{
+						"referenceName": "ds_SalesOrders_DeltaSink",
+						"type": "DatasetReference"
+					}
+				]
+			},
+			{
+				"name": "sp_UpdateDeltaWatermark",
+				"type": "SqlServerStoredProcedure",
+				"dependsOn": [
+					{
+						"activity": "cpy_DeltaLoad",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"storedProcedureName": "[control].[usp_UpdateDeltaWatermark]",
+					"storedProcedureParameters": {
+						"last_id": {
+							"value": {
+								"value": "@{activity('LKP_GetNewWatermark').output.firstRow.new_id}",
+								"type": "Expression"
+							},
+							"type": "Int32"
+						},
+						"table_name": {
+							"value": "sales_orders",
+							"type": "String"
+						}
+					}
+				},
+				"linkedServiceName": {
+					"referenceName": "ls_azuresql_incremental_dataload",
+					"type": "LinkedServiceReference"
+				}
+			}
+		],
+		"annotations": [],
+		"lastPublishTime": "2026-03-01T21:15:10Z"
+	},
+	"type": "Microsoft.DataFactory/factories/pipelines"
+}
